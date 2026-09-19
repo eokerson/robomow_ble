@@ -99,3 +99,51 @@ def test_state_while_returning_home() -> None:
 
     assert device.operating_state == MowerOperatingState.RETURNING_HOME_FOLLOWING_EDGE
     assert device.battery_level == 97
+
+
+def test_going_to_start_when_following_wire_away_from_base() -> None:
+    """Bit 2 set with bit 4 clear means the mower is heading out, not home."""
+    handler, device = _handler()
+
+    _feed(handler, bytes.fromhex("000b462b63257f0000"))
+
+    assert device.operating_state == MowerOperatingState.GOING_TO_START
+
+
+def test_blade_off_transient_is_debounced() -> None:
+    """A single blade-off sample mid-run must not flap the state to idle."""
+    handler, device = _handler()
+
+    _feed(handler, bytes.fromhex("000b6a2b63257f0001"))
+    assert device.operating_state == MowerOperatingState.MOWING
+
+    # blade motor off while the mower reverses at the boundary
+    _feed(handler, bytes.fromhex("000b4a2b62257e0003"))
+    assert device.operating_state == MowerOperatingState.MOWING
+
+    _feed(handler, bytes.fromhex("000b6a2b62257e0003"))
+    assert device.operating_state == MowerOperatingState.MOWING
+
+
+def test_blade_off_beyond_debounce_reports_real_state() -> None:
+    """Once the debounce expires the true state is reported."""
+    import robomow_ble_lib.family_handler_rs as mod
+
+    handler, device = _handler()
+    _feed(handler, bytes.fromhex("000b6a2b63257f0001"))
+    assert device.operating_state == MowerOperatingState.MOWING
+
+    handler._mowing_until = 0.0  # simulate the debounce window elapsing
+    _feed(handler, bytes.fromhex("000b502a62257e0006"))
+
+    assert device.operating_state == MowerOperatingState.CHARGING
+
+
+def test_command_clears_the_debounce() -> None:
+    """Issuing a command must not leave a stale MOWING debounce in place."""
+    handler, _device = _handler()
+    handler._mowing_until = 1e12
+
+    handler._clear_mowing_debounce()
+
+    assert handler._mowing_until == 0.0

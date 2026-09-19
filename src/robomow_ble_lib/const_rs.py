@@ -37,7 +37,15 @@ ZONE_ALL = 0xFF
 # STATE byte 8 (status flags).
 STATE_CHARGE_SOURCE_MASK = 0x03
 STATE_MOW_MOTOR_ACTIVE_MASK = 0x20
-STATE_RETURNING_HOME_MASK = 0x04
+# Bit 2 marks the mower following the perimeter wire; bit 4 distinguishes
+# homebound (set) from outbound (clear).
+STATE_FOLLOWING_WIRE_MASK = 0x04
+STATE_NEAR_BASE_MASK = 0x10
+
+# The blade motor stops briefly whenever the mower reverses and turns at the
+# boundary. Observed gaps are a single poll sample (2 s), so MOWING is held for
+# this long after the last blade-on reading to stop the state flapping.
+MOWING_DEBOUNCE_SECONDS = 10.0
 
 # STATE byte 10 (battery).
 STATE_BATTERY_MASK = 0x7F

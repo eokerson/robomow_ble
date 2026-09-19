@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import struct
 from datetime import time
+from time import monotonic
 from typing import TYPE_CHECKING, Any
 
 from .const import MessageType, MowerOperatingState, MowerSchedule
@@ -15,7 +16,9 @@ from .const_rs import (
     STATE_BATTERY_MASK,
     STATE_CHARGE_SOURCE_MASK,
     STATE_MOW_MOTOR_ACTIVE_MASK,
-    STATE_RETURNING_HOME_MASK,
+    STATE_FOLLOWING_WIRE_MASK,
+    STATE_NEAR_BASE_MASK,
+    MOWING_DEBOUNCE_SECONDS,
     STATE_PAYLOAD_SIZE,
     ZONE_ALL,
     MiscMessageType,
@@ -40,6 +43,15 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
     payloads. Several RT features therefore have no RS equivalent.
     """
 
+    def __init__(self, device: Any) -> None:
+        """Initialize the handler and its blade-debounce state."""
+        super().__init__(device)
+        self._mowing_until: float = 0.0
+
+    def _clear_mowing_debounce(self) -> None:
+        """Forget the blade debounce so the next poll reports the real state."""
+        self._mowing_until = 0.0
+
     async def async_initialize_state(self) -> None:
         """Initialize RS-family state after connection."""
         await self._device._async_send_misc_msg(MiscMessageType.GET_SCHEDULE)
@@ -58,6 +70,7 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
 
     async def _async_send_operation(self, mode: OperationMode) -> None:
         """Send an automatic-operation command."""
+        self._clear_mowing_debounce()
         await self._device._async_send_msg_with_sequence(
             MessageType.COMMAND, struct.pack(">BB", int(mode), ZONE_ALL)
         )
@@ -199,8 +212,8 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
         """Handle a STATE payload.
 
         Layout after the 2-byte type field, following RobotDataMiscellaneousRs:
-            [0] status flags  bits 0-1 charge source, bit 2 returning home,
-                              bit 5 mow motor active
+            [0] status flags  bits 0-1 charge source, bit 2 following wire,
+                              bit 4 near base, bit 5 mow motor active
             [1] operational state
             [2] battery       bits 0-6 percent, bit 7 anti-theft active
             [3] [4] unidentified 16-bit counter
@@ -216,13 +229,21 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
         )
 
         charging = (status_flags & STATE_CHARGE_SOURCE_MASK) == 0
-        mowing = (status_flags & STATE_MOW_MOTOR_ACTIVE_MASK) != 0
-        returning = (status_flags & STATE_RETURNING_HOME_MASK) != 0
+        blade_on = (status_flags & STATE_MOW_MOTOR_ACTIVE_MASK) != 0
+        following_wire = (status_flags & STATE_FOLLOWING_WIRE_MASK) != 0
+        near_base = (status_flags & STATE_NEAR_BASE_MASK) != 0
+
+        now = monotonic()
+        if blade_on:
+            self._mowing_until = now + MOWING_DEBOUNCE_SECONDS
+        mowing = blade_on or now < self._mowing_until
 
         if mowing:
             state = MowerOperatingState.MOWING
-        elif returning:
+        elif following_wire and near_base:
             state = MowerOperatingState.RETURNING_HOME_FOLLOWING_EDGE
+        elif following_wire:
+            state = MowerOperatingState.GOING_TO_START
         elif charging:
             state = MowerOperatingState.CHARGING
         else:

@@ -50,3 +50,9 @@ MOWING_DEBOUNCE_SECONDS = 10.0
 # STATE byte 10 (battery).
 STATE_BATTERY_MASK = 0x7F
 STATE_ANTI_THEFT_ACTIVE_MASK = 0x80
+
+# Total payload size of a GET_MESSAGE response.
+GET_MESSAGE_PAYLOAD_SIZE = 7
+
+# Sentinel written to the message id field when no message is active.
+NO_MESSAGE_ID = 0xFFFF

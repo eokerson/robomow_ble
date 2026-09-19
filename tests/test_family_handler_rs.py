@@ -147,3 +147,37 @@ def test_command_clears_the_debounce() -> None:
     handler._clear_mowing_debounce()
 
     assert handler._mowing_until == 0.0
+
+
+def _feed_msg(handler: RobomowRsFamilyHandler, payload: bytes) -> None:
+    handler.handle_get_message(payload)
+
+
+def test_get_message_reports_an_active_fault() -> None:
+    """An active message id is resolved against the status text table."""
+    handler, device = _handler()
+
+    # captured when the mower halted outside the perimeter wire
+    _feed_msg(handler, bytes.fromhex("050020002c0000"))
+
+    assert device.message is not None
+    assert "Cross outside" in str(device.message)
+
+
+def test_get_message_falls_back_to_the_stop_reason() -> None:
+    """With no active message the stop id describes why the run ended."""
+    handler, device = _handler()
+
+    _feed_msg(handler, bytes.fromhex("00ffff00230000"))
+
+    assert device.message is not None
+    assert "Time Completed" in str(device.message)
+
+
+def test_get_message_ignores_a_short_payload() -> None:
+    """A truncated GET_MESSAGE payload must not raise."""
+    handler, device = _handler()
+
+    _feed_msg(handler, bytes.fromhex("00ffff"))
+
+    assert device.message is None

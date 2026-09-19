@@ -9,8 +9,12 @@ from time import monotonic
 from typing import TYPE_CHECKING, Any
 
 from .const import MessageType, MowerOperatingState, MowerSchedule
+# STATUS_TEXTS is shared mower text, not RT-specific behaviour.
+from .const_rt import get_status_text
 from .const_rs import (
+    GET_MESSAGE_PAYLOAD_SIZE,
     MISC_TYPE_MIN_SIZE,
+    NO_MESSAGE_ID,
     SCHEDULE_PAYLOAD_SIZE,
     STATE_ANTI_THEFT_ACTIVE_MASK,
     STATE_BATTERY_MASK,
@@ -160,10 +164,36 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
     def handle_get_message(self, payload: bytes | bytearray | memoryview) -> None:
         """Handle a GET_MESSAGE payload.
 
-        Sent as the keep-alive; the reply carries a status word that is not
-        decoded yet, so it is only logged.
+        The frame matches the RT layout, but RS-family mowers index both the
+        message id and the stop id into the status text table rather than the
+        separate message and error tables RT uses.
+
+            [0]     message type flags
+            [1] [2] message id, 0xFFFF when no message is active
+            [3] [4] stop id, the reason the last operation ended
+            [5] [6] failure id
         """
-        LOGGER.debug("RS GET_MESSAGE: %s", bytes(payload).hex())
+        if not check_payload_length(
+            MessageType.GET_MESSAGE, payload, GET_MESSAGE_PAYLOAD_SIZE, exact=True
+        ):
+            return
+
+        msg_flags, message_id, stop_id, failure_id = struct.unpack_from(">BHHH", payload)
+
+        if message_id != NO_MESSAGE_ID:
+            message = get_status_text(message_id)
+        else:
+            message = get_status_text(stop_id)
+
+        LOGGER.debug(
+            "RS GET_MESSAGE: flags=0x%02X message_id=%d stop_id=%d failure_id=%d -> %s",
+            msg_flags,
+            message_id,
+            stop_id,
+            failure_id,
+            message,
+        )
+        self._device._set_message(message)
 
     def handle_read_eeprom_response(
         self, request: PendingCommand, response: PendingCommand

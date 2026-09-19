@@ -841,6 +841,14 @@ class RobomowDevice:
         """Poll family-specific status while connected."""
         if self._family_handler is not None:
             await self._family_handler.async_poll_status()
+            return
+
+        # Mowers close the BLE link after roughly 15 seconds of silence. When no
+        # family handler is registered the periodic poll would otherwise send
+        # nothing at all, so the connection is dropped and re-established in a
+        # loop. GET_MESSAGE is a read-only request that doubles as the keep-alive
+        # used by the original Robomow BLE implementations.
+        await self._async_send_msg(MessageType.GET_MESSAGE)
 
     async def _async_read_eeprom_param(self, *params: int) -> bool:
         """Send a message to read one or more EEPROM parameters by ID."""

@@ -1,0 +1,43 @@
+"""Constants for the RS-family Robomow BLE protocol."""
+
+from __future__ import annotations
+
+from enum import IntEnum
+
+# A MISCELLANEOUS payload starts with a 2-byte type field.
+MISC_TYPE_MIN_SIZE = 2
+
+# Total payload size of a STATE response: 2 type bytes + 7 data bytes.
+STATE_PAYLOAD_SIZE = 9
+
+# Total payload size of a GET_SCHEDULE response: 2 type bytes + 16 data bytes.
+SCHEDULE_PAYLOAD_SIZE = 18
+
+
+class MiscMessageType(IntEnum):
+    """RS miscellaneous message sub-types that the mower answers."""
+
+    STATE = 0x0B
+    GET_SCHEDULE = 0x0D
+    EXTENDED_STATE = 0x27
+
+
+class OperationMode(IntEnum):
+    """Operation modes accepted by the automatic-operation command."""
+
+    STOP = 0
+    EDGE = 1
+    MOW = 2
+    BASE = 3
+
+
+# Zone selector used by the automatic-operation command; 0xFF is main/all zones.
+ZONE_ALL = 0xFF
+
+# STATE byte 8 (status flags).
+STATE_CHARGE_SOURCE_MASK = 0x03
+STATE_MOW_MOTOR_ACTIVE_MASK = 0x20
+
+# STATE byte 10 (battery).
+STATE_BATTERY_MASK = 0x7F
+STATE_ANTI_THEFT_ACTIVE_MASK = 0x80

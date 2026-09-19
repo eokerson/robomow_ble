@@ -43,6 +43,7 @@ from .const import (
     Zone,
 )
 from .exceptions import RobomowAuthenticationError
+from .family_handler_rs import RobomowRsFamilyHandler
 from .family_handler_rt import RobomowRtFamilyHandler
 from .helpers import check_payload_length
 
@@ -320,6 +321,8 @@ class RobomowDevice:
 
         if family is MowerFamily.RT:
             target_handler_cls = RobomowRtFamilyHandler
+        elif family in (MowerFamily.RS, MowerFamily.RC):
+            target_handler_cls = RobomowRsFamilyHandler
         else:
             self._family_handler = None
             LOGGER.warning(

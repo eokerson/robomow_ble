@@ -89,3 +89,13 @@ def test_short_state_payload_is_ignored() -> None:
     _feed(handler, bytes.fromhex("000b6a2b"))
 
     assert device.battery_level is None
+
+
+def test_state_while_returning_home() -> None:
+    """Bit 2 of the status byte marks a mower driving back to its base."""
+    handler, device = _handler()
+
+    _feed(handler, bytes.fromhex("000b562b61257f0001"))
+
+    assert device.operating_state == MowerOperatingState.RETURNING_HOME_FOLLOWING_EDGE
+    assert device.battery_level == 97

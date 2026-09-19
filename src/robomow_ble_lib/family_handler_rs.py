@@ -15,6 +15,7 @@ from .const_rs import (
     STATE_BATTERY_MASK,
     STATE_CHARGE_SOURCE_MASK,
     STATE_MOW_MOTOR_ACTIVE_MASK,
+    STATE_RETURNING_HOME_MASK,
     STATE_PAYLOAD_SIZE,
     ZONE_ALL,
     MiscMessageType,
@@ -198,7 +199,8 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
         """Handle a STATE payload.
 
         Layout after the 2-byte type field, following RobotDataMiscellaneousRs:
-            [0] status flags  bits 0-1 charge source, bit 5 mow motor active
+            [0] status flags  bits 0-1 charge source, bit 2 returning home,
+                              bit 5 mow motor active
             [1] operational state
             [2] battery       bits 0-6 percent, bit 7 anti-theft active
             [3] [4] unidentified 16-bit counter
@@ -215,9 +217,12 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
 
         charging = (status_flags & STATE_CHARGE_SOURCE_MASK) == 0
         mowing = (status_flags & STATE_MOW_MOTOR_ACTIVE_MASK) != 0
+        returning = (status_flags & STATE_RETURNING_HOME_MASK) != 0
 
         if mowing:
             state = MowerOperatingState.MOWING
+        elif returning:
+            state = MowerOperatingState.RETURNING_HOME_FOLLOWING_EDGE
         elif charging:
             state = MowerOperatingState.CHARGING
         else:

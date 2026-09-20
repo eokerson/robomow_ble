@@ -161,7 +161,7 @@ def test_get_message_reports_an_active_fault() -> None:
     _feed_msg(handler, bytes.fromhex("050020002c0000"))
 
     assert device.message is not None
-    assert "Stuck on the wire" in str(device.message)
+    assert "Bumper pressed" in str(device.message)
 
 
 def test_get_message_falls_back_to_the_stop_reason() -> None:

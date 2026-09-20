@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import IntEnum
+from types import MappingProxyType
 
 # A MISCELLANEOUS payload starts with a 2-byte type field.
 MISC_TYPE_MIN_SIZE = 2
@@ -56,3 +57,90 @@ GET_MESSAGE_PAYLOAD_SIZE = 7
 
 # Sentinel written to the message id field when no message is active.
 NO_MESSAGE_ID = 0xFFFF
+
+# Stop reason codes, from the "Operation Stop Reason" table in the RS service
+# guide. The mower shows these on its own screen, and the same numbers appear
+# in the stop id field of GET_MESSAGE. "No message" entries are stop reasons
+# that the mower records but does not display.
+STOP_REASONS: MappingProxyType[int, str] = MappingProxyType(
+    {
+        0: "N/A",
+        1: "No message",
+        2: "No wire signal",
+        3: "Start inside",
+        5: "Bumper pressed",
+        6: "Front wheel prob.",
+        7: "Stuck in place",
+        8: "Stuck in place",
+        9: "Check power",
+        10: "No message",
+        11: "No message",
+        12: "No message",
+        13: "Drive overheat",
+        14: "Base problem",
+        15: "Recharge battery",
+        16: "Drive overheat",
+        17: "Recharge battery",
+        18: "Recharge battery",
+        19: "No message",
+        20: "No message",
+        21: "Handle lifted",
+        22: "Start elsewhere",
+        23: "Start elsewhere",
+        24: "Stuck in place",
+        25: "Switch off before lifting",
+        26: "No message",
+        27: "Mow overheat",
+        28: "Check mow height",
+        29: "Check mow height",
+        30: "No wire signal",
+        31: "Mow overheat",
+        32: "Cross outside",
+        33: "Front wheel prob.",
+        35: "Time Completed",
+        36: "Rain detected",
+        37: "No message",
+        38: "No message",
+        39: "No message",
+        40: "Rain detected",
+        41: "No message",
+        42: "Front wheel prob.",
+        43: "No message",
+        44: "Bumper pressed",
+        45: "Drive overheat",
+        46: "Mow overheat",
+        47: "No wire signal",
+        48: "N/A",
+        49: "No message",
+        50: "Recharge battery",
+        51: "Recharge battery",
+        52: "Recharge battery",
+        53: "Recharge battery",
+        54: "Recharge battery",
+        55: "Recharge battery",
+        56: "No message",
+        57: "No message",
+        59: "Low Temperature",
+        61: "Stuck in place",
+        62: "Bumper pressed",
+        63: "Stuck in place",
+        64: "Stuck in place",
+        66: "Base problem",
+        67: "No message",
+        68: "No message",
+        69: "No message",
+        70: "No message",
+        71: "No message",
+        72: "Start elsewhere",
+        73: "No message",
+        74: "Drive overheat",
+        75: "Drive overheat",
+        76: "Rain detected",
+        77: "No message",
+    }
+)
+
+
+def get_stop_reason(number: int) -> str:
+    """Look up the text the mower displays for a stop reason code."""
+    return STOP_REASONS.get(number, f"Unknown stop reason {number}")

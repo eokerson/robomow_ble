@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from .const import MessageType, MowerOperatingState, MowerSchedule
 # STATUS_TEXTS is shared mower text, not RT-specific behaviour.
-from .const_rt import get_status_text
+from .const_rt import get_message, get_status_text
 from .const_rs import (
     GET_MESSAGE_PAYLOAD_SIZE,
     MISC_TYPE_MIN_SIZE,
@@ -169,8 +169,10 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
         separate message and error tables RT uses.
 
             [0]     message type flags
-            [1] [2] message id, 0xFFFF when no message is active
-            [3] [4] stop id, the reason the last operation ended
+            [1] [2] message id, 0xFFFF when no message is active; describes
+                    the current activity and indexes the message table
+            [3] [4] stop id; the condition the mower displays, and indexes
+                    the status text table
             [5] [6] failure id
         """
         if not check_payload_length(
@@ -180,15 +182,16 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
 
         msg_flags, message_id, stop_id, failure_id = struct.unpack_from(">BHHH", payload)
 
-        if message_id != NO_MESSAGE_ID:
-            message = get_status_text(message_id)
-        else:
-            message = get_status_text(stop_id)
+        # The condition the mower displays comes from the stop id via the
+        # status text table. The message id describes what it was doing and is
+        # only logged.
+        message = get_status_text(stop_id)
 
         LOGGER.debug(
-            "RS GET_MESSAGE: flags=0x%02X message_id=%d stop_id=%d failure_id=%d -> %s",
+            "RS GET_MESSAGE: flags=0x%02X message_id=%d (%s) stop_id=%d failure_id=%d -> %s",
             msg_flags,
             message_id,
+            get_message(message_id) if message_id != NO_MESSAGE_ID else "none",
             stop_id,
             failure_id,
             message,

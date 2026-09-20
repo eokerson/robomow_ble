@@ -161,7 +161,7 @@ def test_get_message_reports_an_active_fault() -> None:
     _feed_msg(handler, bytes.fromhex("050020002c0000"))
 
     assert device.message is not None
-    assert "Cross outside" in str(device.message)
+    assert "Stuck on the wire" in str(device.message)
 
 
 def test_get_message_falls_back_to_the_stop_reason() -> None:
@@ -181,3 +181,16 @@ def test_get_message_ignores_a_short_payload() -> None:
     _feed_msg(handler, bytes.fromhex("00ffff"))
 
     assert device.message is None
+
+
+
+def test_get_message_matches_the_mower_display() -> None:
+    """The stop id carries the condition shown on the mower's own screen."""
+    handler, device = _handler()
+
+    # captured while the mower displayed "Start inside" after being driven
+    # outside the perimeter wire
+    _feed_msg(handler, bytes.fromhex("050019000300 00".replace(" ", "")))
+
+    assert device.message is not None
+    assert "Start inside" in str(device.message)

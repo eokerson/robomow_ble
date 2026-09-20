@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import struct
 from datetime import time
+from asyncio import sleep as _async_sleep
 from time import monotonic
 from typing import TYPE_CHECKING, Any
 
@@ -25,8 +26,12 @@ from .const_rs import (
     MOWING_DEBOUNCE_SECONDS,
     STATE_PAYLOAD_SIZE,
     ZONE_ALL,
+    DRIVE_BLADES_ON_FLAG,
+    DRIVE_MAX_TICKS,
+    DRIVE_TICK_SECONDS,
     MiscMessageType,
     OperationMode,
+    RsMessageType,
 )
 from .family_handler_base import RobomowFamilyHandler
 from .helpers import check_payload_length
@@ -51,6 +56,7 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
         """Initialize the handler and its blade-debounce state."""
         super().__init__(device)
         self._mowing_until: float = 0.0
+        self._drive_counter: int = 0
 
     def _clear_mowing_debounce(self) -> None:
         """Forget the blade debounce so the next poll reports the real state."""
@@ -110,6 +116,54 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
     async def async_return_to_home(self) -> None:
         """Send the mower back to its base station."""
         await self._async_send_operation(OperationMode.BASE)
+
+    async def async_drive(
+        self,
+        direction: int,
+        speed: int = 100,
+        ticks: int = 5,
+        *,
+        blades: bool = False,
+    ) -> None:
+        """Drive the mower manually for a bounded number of ticks.
+
+        Each tick is DRIVE_TICK_SECONDS of movement. The mower halts by itself
+        as soon as packets stop arriving, so a dropped link stops the machine
+        rather than leaving it running.
+
+        Args:
+            direction: Steering value; negative turns one way, positive the
+                other. The stock remote used -80 forward, 90 backward,
+                -120 left and 35 right.
+            speed: Drive speed, 0 to 100.
+            ticks: Number of DRIVE_TICK_SECONDS packets to send.
+            blades: Whether to run the blade motor while driving.
+        """
+        ticks = max(1, min(DRIVE_MAX_TICKS, ticks))
+        speed = max(0, min(100, speed))
+        direction &= 0xFF
+
+        self._clear_mowing_debounce()
+        LOGGER.debug(
+            "RS drive: direction=%d speed=%d ticks=%d blades=%s",
+            direction,
+            speed,
+            ticks,
+            blades,
+        )
+
+        for _ in range(ticks):
+            self._drive_counter = (self._drive_counter + 1) & 0x0F
+            flags = (DRIVE_BLADES_ON_FLAG if blades else 0) | (
+                self._drive_counter << 4
+            )
+            await self._device._async_send_msg(
+                RsMessageType.DRIVE,
+                bytes([flags, direction, speed, 0x00, 0x00]),
+            )
+            await _async_sleep(DRIVE_TICK_SECONDS)
+
+        await self._device._async_send_misc_msg(MiscMessageType.STATE)
 
     # --- Unsupported settings ---
 

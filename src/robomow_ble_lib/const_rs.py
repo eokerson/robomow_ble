@@ -148,3 +148,15 @@ STOP_REASONS: MappingProxyType[int, str] = MappingProxyType(
 def get_stop_reason(number: int) -> str:
     """Look up the text the mower displays for a stop reason code."""
     return STOP_REASONS.get(number, f"Unknown stop reason {number}")
+
+class RsMessageType(IntEnum):
+    """RS message types that have no entry in the shared MessageType enum."""
+
+    DRIVE = 0x1A
+
+
+# Manual drive. The mower stops on its own once packets stop arriving, so a
+# move is expressed as a number of ticks at this interval.
+DRIVE_TICK_SECONDS = 0.2
+DRIVE_MAX_TICKS = 50
+DRIVE_BLADES_ON_FLAG = 0x02

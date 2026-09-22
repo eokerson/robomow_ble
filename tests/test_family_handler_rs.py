@@ -194,3 +194,53 @@ def test_get_message_matches_the_mower_display() -> None:
 
     assert device.message is not None
     assert "Start inside" in str(device.message)
+
+
+def test_drive_builds_bounded_frames() -> None:
+    """Manual drive sends one frame per tick with a rolling safety counter."""
+    import asyncio
+
+    handler, device = _handler()
+    sent: list[tuple[int, bytes]] = []
+
+    async def fake_send(msg_type, payload=None):
+        sent.append((int(msg_type), bytes(payload or b"")))
+        return True
+
+    device._async_send_msg = fake_send          # type: ignore[assignment]
+    device._async_send_misc_msg = fake_send     # type: ignore[assignment]
+
+    asyncio.run(handler.async_drive(direction=-80, speed=100, ticks=3))
+
+    drives = [p for t, p in sent if t == 0x1A]
+    assert len(drives) == 3
+    for payload in drives:
+        assert len(payload) == 5
+        assert payload[1] == 0xB0      # -80 as an unsigned byte
+        assert payload[2] == 100       # speed
+        assert payload[0] & 0x02 == 0  # blades off by default
+    # the safety counter must advance between packets
+    assert len({p[0] >> 4 for p in drives}) == 3
+
+
+def test_drive_clamps_ticks_and_speed() -> None:
+    """Out-of-range arguments are clamped rather than sent verbatim."""
+    import asyncio
+
+    from robomow_ble_lib.const_rs import DRIVE_MAX_TICKS
+
+    handler, device = _handler()
+    sent: list[tuple[int, bytes]] = []
+
+    async def fake_send(msg_type, payload=None):
+        sent.append((int(msg_type), bytes(payload or b"")))
+        return True
+
+    device._async_send_msg = fake_send          # type: ignore[assignment]
+    device._async_send_misc_msg = fake_send     # type: ignore[assignment]
+
+    asyncio.run(handler.async_drive(direction=0, speed=999, ticks=9999))
+
+    drives = [p for t, p in sent if t == 0x1A]
+    assert len(drives) == DRIVE_MAX_TICKS
+    assert all(p[2] == 100 for p in drives)

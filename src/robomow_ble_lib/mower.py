@@ -980,6 +980,23 @@ class RobomowDevice:
         msg = f"stop_mowing not implemented for family {self.family.name}"
         raise NotImplementedError(msg)
 
+    async def async_drive(
+        self,
+        direction: int,
+        speed: int = 100,
+        ticks: int = 5,
+        *,
+        blades: bool = False,
+    ) -> None:
+        """Drive the mower manually, where the family supports it."""
+        handler = self._family_handler
+        drive = getattr(handler, "async_drive", None)
+        if drive is not None:
+            await drive(direction, speed, ticks, blades=blades)
+            return
+        msg = f"drive not implemented for family {self.family.name}"
+        raise NotImplementedError(msg)
+
     async def async_return_to_home(self) -> None:
         """Return mower home for the active mower family."""
         if self._family_handler is not None:

@@ -36,3 +36,20 @@ def test_device_defaults_without_connection() -> None:
     assert mower.family == MowerFamily.Unknown
     assert mower.model == MowerModel.Unknown
     assert mower.is_connected() is False
+
+
+def test_auth_payload_is_padded_to_fixed_width() -> None:
+    """The auth payload must always be AUTH_RESPONSE_LENGTH bytes.
+
+    RS-family mowers use 13-digit mainboard serials while RT-family mowers use
+    14 digits. The authentication characteristic is a fixed-width field, so the
+    serial has to be zero-padded rather than merely NUL-terminated.
+    """
+    from robomow_ble_lib.const import AUTH_RESPONSE_LENGTH
+
+    for serial in ("2411800002985", "12345678901234"):
+        mower = RobomowDevice(mainboard_serial=serial, update_callback=None)
+
+        assert len(mower._mainboard_serial) == AUTH_RESPONSE_LENGTH
+        assert mower._mainboard_serial.startswith(serial.encode())
+        assert mower.mainboard_serial == serial

@@ -125,7 +125,9 @@ class RobomowDevice:
             update_callback: Optional callback that receives state updates.
         """
         self._mainboard_serial: bytes = (
-            mainboard_serial.strip().encode("utf-8") + b"\x00"
+            mainboard_serial.strip()
+            .encode("utf-8")
+            .ljust(AUTH_RESPONSE_LENGTH, b"\x00")[:AUTH_RESPONSE_LENGTH]
         )
         self._update_callback: RobomowUpdateCallback | None = update_callback
 

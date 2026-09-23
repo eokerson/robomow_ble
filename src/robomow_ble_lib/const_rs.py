@@ -14,6 +14,21 @@ STATE_PAYLOAD_SIZE = 9
 # Total payload size of a GET_SCHEDULE response: 2 type bytes + 16 data bytes.
 SCHEDULE_PAYLOAD_SIZE = 18
 
+# GET_SCHEDULE field offsets, measured against the payload including the two
+# subtype bytes. Established by comparing captures against a mower whose
+# settings were known, and by toggling one day and diffing the result.
+SCHEDULE_DAY_FLAGS_OFFSET = 2
+SCHEDULE_WINDOW_END_OFFSET = 10
+SCHEDULE_WINDOW_START_OFFSET = 12
+SCHEDULE_INACTIVE_START_OFFSET = 14
+SCHEDULE_INACTIVE_END_OFFSET = 16
+
+# Low seven bits of the flags field are a per-day mask, bit 0 Monday through
+# bit 6 Sunday. A SET bit means that day is DISABLED, which is the opposite
+# of the sense the name suggests.
+SCHEDULE_DAY_DISABLED_MASK = 0x7F
+SCHEDULE_DAYS_PER_WEEK = 7
+
 
 class MiscMessageType(IntEnum):
     """RS miscellaneous message sub-types that the mower answers."""

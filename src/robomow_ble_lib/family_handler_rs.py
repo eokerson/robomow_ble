@@ -14,7 +14,14 @@ from .const_rs import (
     MISC_TYPE_MIN_SIZE,
     NO_MESSAGE_ID,
     get_stop_reason,
+    SCHEDULE_DAY_DISABLED_MASK,
+    SCHEDULE_DAY_FLAGS_OFFSET,
+    SCHEDULE_DAYS_PER_WEEK,
+    SCHEDULE_INACTIVE_END_OFFSET,
+    SCHEDULE_INACTIVE_START_OFFSET,
     SCHEDULE_PAYLOAD_SIZE,
+    SCHEDULE_WINDOW_END_OFFSET,
+    SCHEDULE_WINDOW_START_OFFSET,
     STATE_ANTI_THEFT_ACTIVE_MASK,
     STATE_BATTERY_MASK,
     STATE_CHARGE_SOURCE_MASK,
@@ -290,18 +297,59 @@ class RobomowRsFamilyHandler(RobomowFamilyHandler):
     def _handle_misc_schedule(self, payload: bytes | bytearray | memoryview) -> None:
         """Handle a GET_SCHEDULE payload.
 
-        The two confirmed fields are the daily mowing window, stored as
-        minutes past midnight at offsets 10 and 12.
+        Four time fields and a per-day mask are confirmed, each checked
+        against a mower whose settings were known:
+
+            [2:4]   flags; low 7 bits are the day mask (see below)
+            [10:12] end of the daily mowing window
+            [12:14] start of the daily mowing window
+            [14:16] start of the inactive window
+            [16:18] end of the inactive window
+
+        Times are minutes past midnight. In the day mask, bit 0 is Monday
+        through bit 6 Sunday, and a SET bit means that day is *disabled*.
+        Offsets 4 to 9 have not been identified.
         """
         if not check_payload_length(
             MessageType.MISCELLANEOUS, payload, SCHEDULE_PAYLOAD_SIZE, exact=True
         ):
             return
 
-        window_end, window_start = struct.unpack_from(">HH", payload, offset=10)
+        (day_flags,) = struct.unpack_from(
+            ">H", payload, offset=SCHEDULE_DAY_FLAGS_OFFSET
+        )
+        (window_end,) = struct.unpack_from(
+            ">H", payload, offset=SCHEDULE_WINDOW_END_OFFSET
+        )
+        (window_start,) = struct.unpack_from(
+            ">H", payload, offset=SCHEDULE_WINDOW_START_OFFSET
+        )
+        (inactive_start,) = struct.unpack_from(
+            ">H", payload, offset=SCHEDULE_INACTIVE_START_OFFSET
+        )
+        (inactive_end,) = struct.unpack_from(
+            ">H", payload, offset=SCHEDULE_INACTIVE_END_OFFSET
+        )
+
+        disabled = day_flags & SCHEDULE_DAY_DISABLED_MASK
+        days = tuple(
+            MowerSchedule.Day(enabled=(disabled & (1 << index)) == 0)
+            for index in range(SCHEDULE_DAYS_PER_WEEK)
+        )
 
         schedule = MowerSchedule(
             start_time=time(hour=window_start // 60, minute=window_start % 60),
             end_time=time(hour=window_end // 60, minute=window_end % 60),
+            day=days,
+        )
+        LOGGER.debug(
+            "  RS GET_SCHEDULE: mow %02d:%02d-%02d:%02d inactive %02d:%02d-%02d:%02d "
+            "flags=0x%04X enabled=%s",
+            window_start // 60, window_start % 60,
+            window_end // 60, window_end % 60,
+            inactive_start // 60, inactive_start % 60,
+            inactive_end // 60, inactive_end % 60,
+            day_flags,
+            [d.enabled for d in days],
         )
         self._device._set_schedule(schedule)

@@ -73,6 +73,73 @@ def test_schedule_window_is_decoded() -> None:
     assert device.schedule.end_time.hour == 20
 
 
+# Three GET_SCHEDULE frames captured from the mower's wired toolkit port while
+# the Robomow phone app toggled one day. The schedule went Sunday-off, then
+# Saturday-and-Sunday-off, then back, so the same bytes are seen twice with a
+# different state in between.
+_SCHEDULE_SUNDAY_OFF = "000d014000555555050104b001e005640168"
+_SCHEDULE_SAT_SUN_OFF = "000d016000555555050104b001e005640168"
+
+
+def test_schedule_marks_sunday_disabled() -> None:
+    """Bit 6 of the day mask is Sunday, and a set bit means disabled."""
+    handler, device = _handler()
+
+    _feed(handler, bytes.fromhex(_SCHEDULE_SUNDAY_OFF))
+
+    assert device.schedule is not None
+    assert [d.enabled for d in device.schedule.day] == [
+        True, True, True, True, True, True, False
+    ]
+
+
+def test_schedule_tracks_a_second_disabled_day() -> None:
+    """Disabling Saturday sets bit 5 while Sunday's bit 6 stays set."""
+    handler, device = _handler()
+
+    _feed(handler, bytes.fromhex(_SCHEDULE_SAT_SUN_OFF))
+
+    assert device.schedule is not None
+    assert [d.enabled for d in device.schedule.day] == [
+        True, True, True, True, True, False, False
+    ]
+
+
+def test_schedule_day_mask_round_trips() -> None:
+    """Re-enabling the day restores the original decode exactly."""
+    handler, device = _handler()
+
+    _feed(handler, bytes.fromhex(_SCHEDULE_SAT_SUN_OFF))
+    _feed(handler, bytes.fromhex(_SCHEDULE_SUNDAY_OFF))
+
+    assert device.schedule is not None
+    assert [d.enabled for d in device.schedule.day] == [
+        True, True, True, True, True, True, False
+    ]
+
+
+def test_schedule_window_survives_a_day_change() -> None:
+    """Toggling a day must not disturb the mowing window fields."""
+    handler, device = _handler()
+
+    _feed(handler, bytes.fromhex(_SCHEDULE_SAT_SUN_OFF))
+
+    assert device.schedule is not None
+    assert device.schedule.start_time.hour == 8
+    assert device.schedule.end_time.hour == 20
+
+
+def test_stop_reason_reports_the_cause_not_a_blank_lcd() -> None:
+    """Codes whose LCD message is blank must still say why the mower stopped."""
+    handler, device = _handler()
+
+    _feed_msg(handler, bytes.fromhex("00ffff00140000"))
+
+    assert device.message is not None
+    assert "No message" not in device.message.title
+    assert "handle" in device.message.title.lower()
+
+
 def test_unknown_misc_type_is_ignored() -> None:
     """An unhandled MISCELLANEOUS sub-type must not raise."""
     handler, device = _handler()

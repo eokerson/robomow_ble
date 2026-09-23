@@ -6,8 +6,24 @@ Bluetooth Low Energy (BLE).
 It provides a reusable BLE protocol layer for Robomow mowers and can be used
 directly in Python applications.
 
-Currently it only supports RT models. 
-Support for other models may be added in the future if there is demand and access to devices for testing.
+## Supported families
+
+- **RT** — full support.
+- **RS / RC** — battery, operating state, fault and stop reasons, and the
+  mowing window and per-day schedule, plus the four operation commands (mow,
+  edge, stop, return to base).
+
+Settings with no known RS encoding — writing the schedule, enabling or
+disabling it, anti-theft, child lock and wire signal type — log a warning and
+make no change. `MowerModel` has no RS entries, so RS mowers report
+`MowerModel.Unknown`; the **family** is what identifies them.
+
+RS support was reverse-engineered against a single machine, a Robomow 612p
+running software 25 / release 302 on mainboard 6, and each field was confirmed
+by watching the physical mower. It has not been tested on any other RS model.
+
+Support for other families may be added in the future if there is demand and
+access to devices for testing.
 
 ## API Overview
 

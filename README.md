@@ -6,8 +6,24 @@ Bluetooth Low Energy (BLE).
 It provides a reusable BLE protocol layer for Robomow mowers and can be used
 directly in Python applications.
 
-Currently it only supports RT models. 
-Support for other models may be added in the future if there is demand and access to devices for testing.
+## Supported families
+
+- **RT** — full support.
+- **RS / RC** — battery, operating state, fault and stop reasons, schedule
+  reading, the four operation commands (mow, edge, stop, return to base) and
+  bounded manual drive.
+
+Settings with no known RS encoding — writing the schedule, enabling or
+disabling it, anti-theft, child lock and wire signal type — log a warning and
+make no change. `MowerModel` has no RS entries, so RS mowers report
+`MowerModel.Unknown`; the **family** is what identifies them.
+
+RS support was reverse-engineered against a single machine, a Robomow 612p
+running software 25 / release 302 on mainboard 6, and each field was confirmed
+by watching the physical mower. It has not been tested on any other RS model.
+
+Support for other families may be added in the future if there is demand and
+access to devices for testing.
 
 ## API Overview
 
@@ -88,6 +104,16 @@ Common control methods:
 - `await mower.async_stop_mowing()`
 - `await mower.async_return_to_home()`
 
+Manual drive, where the family supports it (RS only at present):
+
+- `await mower.async_drive(direction, speed=100, ticks=5, blades=False)`
+
+A tick is 0.2&nbsp;s of movement, 50 maximum, so one call moves the mower for at
+most ten seconds. The mower halts by itself once packets stop arriving, so a
+dropped link or a crashed caller stops the machine rather than leaving it
+running. Drive frames bypass the perimeter-wire logic entirely — the mower will
+drive itself outside the wire and strand itself there.
+
 Common settings methods:
 
 - `await mower.async_enable_schedule()` / `await mower.async_disable_schedule()`
@@ -95,6 +121,9 @@ Common settings methods:
 - `await mower.async_enable_anti_theft()` / `await mower.async_disable_anti_theft()`
 - `await mower.async_enable_child_lock()` / `await mower.async_disable_child_lock()`
 - `await mower.async_set_wire_signal_type(wire_signal_type)`
+
+On RS mowers the settings methods above have no known encoding: they log a
+warning and return without changing anything.
 
 ### Read state
 

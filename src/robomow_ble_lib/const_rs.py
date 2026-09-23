@@ -59,13 +59,20 @@ GET_MESSAGE_PAYLOAD_SIZE = 7
 NO_MESSAGE_ID = 0xFFFF
 
 # Stop reason codes, from the "Operation Stop Reason" table in the RS service
-# guide. The mower shows these on its own screen, and the same numbers appear
-# in the stop id field of GET_MESSAGE. "No message" entries are stop reasons
-# that the mower records but does not display.
+# guide. The same numbers appear in the stop id field of GET_MESSAGE.
+#
+# The guide gives each code an LCD message and a separate description of the
+# cause. For 22 of the 77 codes the LCD message is literally "No message" —
+# the mower stops and displays nothing — so those entries carry the guide's
+# description instead. Reporting "No message" would be faithful to the screen
+# and useless to the reader.
+#
+# Where the guide says "STOP button", RS models without one (the 612p among
+# them) use the pull handle for the same function.
 STOP_REASONS: MappingProxyType[int, str] = MappingProxyType(
     {
         0: "N/A",
-        1: "No message",
+        1: "STOP handle pulled",
         2: "No wire signal",
         3: "Start inside",
         4: "Key pressed",
@@ -74,23 +81,23 @@ STOP_REASONS: MappingProxyType[int, str] = MappingProxyType(
         7: "Stuck in place/Cross",
         8: "Stuck in place",
         9: "Check power",
-        10: "No message",
-        11: "No message",
-        12: "No message",
+        10: "Charging halted — no charging voltage",
+        11: "Stopped by One Time Setup — base position or wire test ended",
+        12: "Stopped by One Time Setup — obstacle event",
         13: "Drive overheat",
         14: "Base problem",
         15: "Recharge battery",
         16: "Drive overheat",
         17: "Recharge battery",
         18: "Recharge battery",
-        19: "No message",
-        20: "No message",
+        19: "Charging halted — charger overheat",
+        20: "Carrying handle lifted",
         21: "Handle lifted",
         22: "Start elsewhere",
         23: "Start elsewhere",
         24: "Stuck in place",
         25: "Switch off before lifting",
-        26: "No message",
+        26: "System switch turned off",
         27: "Mow overheat",
         28: "Check mow height",
         29: "Check mow height",
@@ -101,27 +108,27 @@ STOP_REASONS: MappingProxyType[int, str] = MappingProxyType(
         34: "Inactive Time",
         35: "Time Completed",
         36: "Rain detected",
-        37: "No message",
-        38: "No message",
-        39: "No message",
+        37: "BIT edge terminate test — end of edge detected",
+        38: "Remote control safety button pressed",
+        39: "STOP handle pulled during manual operation",
         40: "Rain detected",
-        41: "No message",
+        41: "Front wheel drop-off too long — sent back to base",
         42: "Front wheel prob.",
-        43: "No message",
+        43: "Bumper held too long — sent back to base",
         44: "Bumper pressed",
         45: "Drive overheat",
         46: "Mow overheat",
         47: "No wire signal",
         48: "N/A",
-        49: "No message",
+        49: "Wrong menu place detected",
         50: "Recharge battery",
         51: "Recharge battery",
         52: "Recharge battery",
         53: "Recharge battery",
         54: "Recharge battery",
         55: "Recharge battery",
-        56: "No message",
-        57: "No message",
+        56: "BIT near-wire test — end of edge detected",
+        57: "UP/DOWN/Cancel button held — panic mode",
         59: "Low Temperature",
         60: "Check mow height",
         61: "Stuck in place",
@@ -130,17 +137,17 @@ STOP_REASONS: MappingProxyType[int, str] = MappingProxyType(
         64: "Stuck in place",
         65: "Floater Problem",
         66: "Base problem",
-        67: "No message",
-        68: "No message",
-        69: "No message",
-        70: "No message",
-        71: "No message",
+        67: "Docking station detected while going to entry point",
+        68: "Battery overheat while charging",
+        69: "UP button held — panic mode",
+        70: "DOWN button held — panic mode",
+        71: "Stop command received from the mobile app",
         72: "Start elsewhere",
-        73: "No message",
+        73: "Charging stopped to send a GSM message",
         74: "Drive overheat",
         75: "Drive overheat",
         76: "Rain detected",
-        77: "No message",
+        77: "Battery capacity timeout",
     }
 )
 
